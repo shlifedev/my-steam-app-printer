@@ -1,3 +1,4 @@
+using System.Drawing;
 using Newtonsoft.Json.Linq;
 
 namespace steam_appid_gen;
@@ -19,14 +20,19 @@ public class MyApp
     {
         while (true)
         {
+            Console.Clear();
             PrintMyGames();
-            PrintAddedGames();
-            WaitInput();
+            PrintAddedGames(); 
+            await WaitInput();
         }
     }
+    
 
-    void WaitInput()
+    async Task WaitInput()
     {
+        
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"추가할 게임의 이름 또는 인덱스를 입력하세요. (현재 {this.added.Count}/{MAX_COUNT}개)");
         string input = Console.ReadLine();
         if (int.TryParse(input, out int index))
         {
@@ -34,7 +40,7 @@ public class MyApp
         }
         else
         {
-            AddByName(input);
+            await AddByName(input);
         }
     }
     
@@ -45,10 +51,22 @@ public class MyApp
     void PrintMyGames()
     {
         var print = GetPrintList();
+        int cnt = 0;
         for (int i = 0; i < print.Count; i++)
         {
-            Console.WriteLine($"{i + 1}. {print[i].AppName} ({print[i].PlayHour} 시간 플레이1)");
-        }
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.Write($"{i + 1}."); 
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            int findMaxPadding =  print.Max(x => x.AppName.Length);
+            string appInfo = ($"{print[i].AppName} ({print[i].PlayHour}H)").PadRight(findMaxPadding);
+
+            Console.Write(appInfo);
+            cnt++;
+            if (cnt % 3 == 0)
+            {
+                Console.WriteLine();
+            }
+        } 
     }
 
     void PrintAddedGames()
