@@ -11,9 +11,23 @@ public class MyApp
     public List<AppData> added = new List<AppData>();
     public const int MAX_COUNT = 32;
 
+    
     public async Task Initialize()
     {
-        await VerifyConfigAndLoad();
+        await PreloadAdded();
+        await VerifyConfigAndLoad(); 
+    }
+    
+    async Task SaveAdded()
+    {
+        await System.IO.File.WriteAllTextAsync("added.json", Newtonsoft.Json.JsonConvert.SerializeObject(added));
+    }
+    async Task PreloadAdded()
+    {
+        if (System.IO.File.Exists("added.json"))
+        {
+            added = Newtonsoft.Json.JsonConvert.DeserializeObject<List<AppData>>(await System.IO.File.ReadAllTextAsync("added.json"));
+        }
     }
 
     async Task AppLogic()
@@ -22,7 +36,7 @@ public class MyApp
         {
             Console.Clear();
             PrintMyGames();
-            PrintAddedGames(); 
+            PrintAddedGamesWithName();
             await WaitInput();
         }
     }
@@ -33,14 +47,36 @@ public class MyApp
         
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine($"추가할 게임의 이름 또는 인덱스를 입력하세요. (현재 {this.added.Count}/{MAX_COUNT}개)");
+        Console.WriteLine($"그 외 추가 명령어 :");
+        Console.WriteLine($"-r [appId] : 추가된 게임을 제거합니다."); 
+        Console.WriteLine($"-c : 추가된 게임을 모두 제거합니다.");
+        Console.WriteLine($"-p : 추가된 게임을 ',' 로 구분하여 출력합니다.");
         string input = Console.ReadLine();
-        if (int.TryParse(input, out int index))
+        if(input.StartsWith("-r"))
+        {
+            string appId = input.Split(" ")[1];
+            await RemoveByAppId(appId);
+            await SaveAdded();
+        }
+        else if(input.StartsWith("-c"))
+        {
+            added.Clear();
+            await SaveAdded();
+        }
+        else if(input.StartsWith("-p"))
+        {
+            PrintAddedGames();
+            Console.ReadLine();
+        }
+        else if (int.TryParse(input, out int index))
         {
             AddByIndex(index);
+            await SaveAdded();
         }
         else
         {
             await AddByName(input);
+            await SaveAdded();
         }
     }
     
@@ -62,15 +98,35 @@ public class MyApp
 
             Console.Write(appInfo);
             cnt++;
-            if (cnt % 3 == 0)
+            if (cnt!= 0 && cnt % 3 == 0)
             {
                 Console.WriteLine();
             }
         } 
     }
-
+    void PrintAddedGamesWithName()
+    { 
+        Console.WriteLine("\n");
+        var sort = added.OrderBy(x => x.AppName).ToList();
+        for (var index = 0; index < sort.Count; index++)
+        { 
+            var app = sort[index];
+            
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Write($"{app.AppName}");
+            
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write($"({app.AppId})".PadRight(5));
+            Console.Write("\t");
+            if (index != 0 && index % 3 == 0)
+            {
+                Console.WriteLine();
+            }
+        }
+    }
     void PrintAddedGames()
     {
+        Console.WriteLine("\n");
         Console.WriteLine(string.Join(",",added.Select(x=>x.AppId)));
     }
     
@@ -122,6 +178,24 @@ public class MyApp
         return added.Any(x => x.AppId == appId);
     }
     
+    
+    public AppData FindByAppId(string appId)
+    {
+        return loaded.Find(x => x.AppId == appId);
+    }
+    
+     
+    public async Task RemoveByAppId(string appId)
+    {
+         var find = FindByAppId(appId);
+            if (find != null)
+            {
+                if(IsAppAdded(appId))
+                    added.Remove(find);
+            }
+    }
+    
+    
     public async Task AddByName(string name)
     { 
         List<AppData> finded = loaded.FindAll(x => x.AppName.Contains(name));
@@ -133,8 +207,19 @@ public class MyApp
             return;
         }
         else
-        {  
-            if(finded.Count == 1) added.Add(finded[0]);
+        {
+            if (finded.Count == 1)
+            {
+                if(!IsAppAdded(finded[0].AppId))
+                    added.Add(finded[0]);
+                else
+                {
+                    Console.WriteLine("이미 추가된 게임입니다.");
+                    await Task.Delay(1000);
+                    Console.Clear();
+                    return;
+                }
+            }
             else
             {
                 Console.Clear();
