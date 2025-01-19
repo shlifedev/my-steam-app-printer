@@ -49,7 +49,7 @@ public class MyApp
         return loaded.FindAll(x => !added.Select(y => y.AppId).Contains(x.AppId)).OrderBy(x => x.PlayMinute).ToList();
     }
     void PrintMyGames()
-    {
+    { 
         var print = GetPrintList();
         int cnt = 0;
         for (int i = 0; i < print.Count; i++)
@@ -176,7 +176,7 @@ public class MyApp
     #region apis
     private static async Task<List<AppData>> GetOwnedGames(string apiKey, string steamId)
     {
-        string url = $"https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key={apiKey}&steamid={steamId}&include_appinfo=true&format=json";
+        string url = $"https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key={apiKey}&steamid={steamId}&include_appinfo=true&format=json&include_played_free_games=1&skip_unvetted_apps=false";
         var response = await client.GetStringAsync(url);
         var json = JObject.Parse(response);
 
