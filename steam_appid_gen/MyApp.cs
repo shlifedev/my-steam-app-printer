@@ -6,18 +6,18 @@ namespace steam_appid_gen;
 public class MyApp
 {
     private static readonly HttpClient client = new HttpClient();
-    public Config config; 
+    public Config config;
     public List<AppData> loaded = new List<AppData>();
     public List<AppData> added = new List<AppData>();
     public const int MAX_COUNT = 32;
 
-    
+
     public async Task Initialize()
     {
         await PreloadAdded();
-        await VerifyConfigAndLoad(); 
+        await VerifyConfigAndLoad();
     }
-    
+
     async Task SaveAdded()
     {
         await System.IO.File.WriteAllTextAsync("added.json", Newtonsoft.Json.JsonConvert.SerializeObject(added));
@@ -40,30 +40,30 @@ public class MyApp
             await WaitInput();
         }
     }
-    
+
 
     async Task WaitInput()
     {
-        
+
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine($"추가할 게임의 이름 또는 인덱스를 입력하세요. (현재 {this.added.Count}/{MAX_COUNT}개)");
         Console.WriteLine($"그 외 추가 명령어 :");
-        Console.WriteLine($"-r [appId] : 추가된 게임을 제거합니다."); 
+        Console.WriteLine($"-r [appId] : 추가된 게임을 제거합니다.");
         Console.WriteLine($"-c : 추가된 게임을 모두 제거합니다.");
         Console.WriteLine($"-p : 추가된 게임을 ',' 로 구분하여 출력합니다.");
         string input = Console.ReadLine();
-        if(input.StartsWith("-r"))
+        if (input.StartsWith("-r"))
         {
             string appId = input.Split(" ")[1];
             await RemoveByAppId(appId);
             await SaveAdded();
         }
-        else if(input.StartsWith("-c"))
+        else if (input.StartsWith("-c"))
         {
             added.Clear();
             await SaveAdded();
         }
-        else if(input.StartsWith("-p"))
+        else if (input.StartsWith("-p"))
         {
             PrintAddedGames();
             Console.ReadLine();
@@ -79,42 +79,42 @@ public class MyApp
             await SaveAdded();
         }
     }
-    
+
     List<AppData> GetPrintList()
     {
         return loaded.FindAll(x => !added.Select(y => y.AppId).Contains(x.AppId)).OrderBy(x => x.PlayMinute).ToList();
     }
     void PrintMyGames()
-    { 
+    {
         var print = GetPrintList();
         int cnt = 0;
         for (int i = 0; i < print.Count; i++)
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write($"{i + 1}."); 
+            Console.Write($"{i + 1}.");
             Console.ForegroundColor = ConsoleColor.Yellow;
-            int findMaxPadding =  print.Max(x => x.AppName.Length);
+            int findMaxPadding = print.Max(x => x.AppName.Length);
             string appInfo = ($"{print[i].AppName} ({print[i].PlayHour}H)").PadRight(findMaxPadding);
 
             Console.Write(appInfo);
             cnt++;
-            if (cnt!= 0 && cnt % 3 == 0)
+            if (cnt != 0 && cnt % 3 == 0)
             {
                 Console.WriteLine();
             }
-        } 
+        }
     }
     void PrintAddedGamesWithName()
-    { 
+    {
         Console.WriteLine("\n");
         var sort = added.OrderBy(x => x.AppName).ToList();
         for (var index = 0; index < sort.Count; index++)
-        { 
+        {
             var app = sort[index];
-            
+
             Console.ForegroundColor = ConsoleColor.Red;
             Console.Write($"{app.AppName}");
-            
+
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.Write($"({app.AppId})".PadRight(5));
             Console.Write("\t");
@@ -127,10 +127,10 @@ public class MyApp
     void PrintAddedGames()
     {
         Console.WriteLine("\n");
-        Console.WriteLine(string.Join(",",added.Select(x=>x.AppId)));
+        Console.WriteLine(string.Join(",", added.Select(x => x.AppId)));
     }
-    
-    
+
+
     async Task VerifyConfigAndLoad()
     {
         if (System.IO.File.Exists("appConfig.json"))
@@ -138,31 +138,36 @@ public class MyApp
             config = Newtonsoft.Json.JsonConvert.DeserializeObject<Config>(await System.IO.File.ReadAllTextAsync("appConfig.json"));
         }
         else
-        { 
+        {
             Console.WriteLine("API Key를 입력하세요.");
-                string apiKey = Console.ReadLine();
-                Console.WriteLine("Steam ID를 입력하세요.");
-                string steamId = Console.ReadLine();
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("Get API Key Here :  https://steamcommunity.com/dev/apikey");
+            Console.ForegroundColor = ConsoleColor.White;
+            string apiKey = Console.ReadLine();
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("Steam ID를 입력하세요.");
+            Console.ForegroundColor = ConsoleColor.White;
+            string steamId = Console.ReadLine();
 
-                config = new Config()
-                {
-                    apiKey = apiKey,
-                    steamId = steamId
-                };
-                await System.IO.File.WriteAllTextAsync("appConfig.json",
-                    Newtonsoft.Json.JsonConvert.SerializeObject(config));
+            config = new Config()
+            {
+                apiKey = apiKey,
+                steamId = steamId
+            };
+            await System.IO.File.WriteAllTextAsync("appConfig.json",
+                Newtonsoft.Json.JsonConvert.SerializeObject(config));
         }
 
         try
         {
             loaded = await GetOwnedGames(config.apiKey, config.steamId);
             await AppLogic();
-            
+
         }
         catch (Exception e)
         {
             Console.WriteLine(e);
-            if( System.IO.File.Exists("appConfig.json"))
+            if (System.IO.File.Exists("appConfig.json"))
                 System.IO.File.Delete("appConfig.json");
 
             Console.WriteLine("Restart Config..");
@@ -170,34 +175,34 @@ public class MyApp
             // Restart Logic
             await VerifyConfigAndLoad();
         }
- 
+
     }
-    
+
     public bool IsAppAdded(string appId)
-    {  
+    {
         return added.Any(x => x.AppId == appId);
     }
-    
-    
+
+
     public AppData FindByAppId(string appId)
     {
         return loaded.Find(x => x.AppId == appId);
     }
-    
-     
+
+
     public async Task RemoveByAppId(string appId)
     {
-         var find = FindByAppId(appId);
-            if (find != null)
-            {
-                if(IsAppAdded(appId))
-                    added.Remove(find);
-            }
+        var find = FindByAppId(appId);
+        if (find != null)
+        {
+            if (IsAppAdded(appId))
+                added.Remove(find);
+        }
     }
-    
-    
+
+
     public async Task AddByName(string name)
-    { 
+    {
         List<AppData> finded = loaded.FindAll(x => x.AppName.Contains(name));
         if (finded.Count == 0)
         {
@@ -210,7 +215,7 @@ public class MyApp
         {
             if (finded.Count == 1)
             {
-                if(!IsAppAdded(finded[0].AppId))
+                if (!IsAppAdded(finded[0].AppId))
                     added.Add(finded[0]);
                 else
                 {
@@ -246,7 +251,7 @@ public class MyApp
     {
 
         var list = GetPrintList();
-        
+
         if (index > 0 && index <= list.Count)
         {
             if (IsAppAdded(list[index - 1].AppId))
@@ -272,16 +277,16 @@ public class MyApp
             {
                 AppId = game["appid"].ToString(),
                 AppName = game["name"].ToString(),
-                PlayMinute = int.Parse(game["playtime_forever"].ToString()) 
+                PlayMinute = int.Parse(game["playtime_forever"].ToString())
             };
-             
+
             appIds.Add(data);
 
         }
 
         return appIds;
     }
-    
+
 
     #endregion
 }
